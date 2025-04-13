@@ -19,7 +19,7 @@
 
 <input type="text" id="username" placeholder="Ваше имя">
 <input type="text" id="message" placeholder="Сообщение">
-<button onclick="send()">Отправить</button>
+<button id="sendButton">Отправить</button>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
@@ -40,15 +40,20 @@
   const db = getDatabase(app);
   const chatRef = ref(db, 'chat');
 
+  // Функция отправки сообщений
   function send() {
     const username = document.getElementById('username').value.trim();
     const message = document.getElementById('message').value.trim();
-    if(username !== "" && message !== "") {
+    if (username !== "" && message !== "") {
       push(chatRef, { name: username, text: message });
-      document.getElementById('message').value = "";
+      document.getElementById('message').value = ""; // очищаем поле после отправки
     }
   }
 
+  // Обработчик для кнопки отправки
+  document.getElementById('sendButton').addEventListener('click', send);
+
+  // Обработка новых сообщений в чате
   const messagesDiv = document.getElementById('messages');
 
   onChildAdded(chatRef, (data) => {
@@ -56,7 +61,7 @@
     const div = document.createElement('div');
     div.textContent = `${name}: ${text}`;
     messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight; // скроллим вниз
   });
 </script>
 

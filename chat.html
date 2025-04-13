@@ -40,21 +40,15 @@
   const db = getDatabase(app);
   const chatRef = ref(db, 'chat');
 
-  // Функция для генерации случайного уникального ID
-  function generateUniqueId() {
-    return 'user_' + Math.random().toString(36).substr(2, 9); // Генерируем уникальный ID
-  }
-
-  // Уникальный ID для текущего сеанса
-  const uniqueId = generateUniqueId();
+  // Генерация уникального ID для сессии
+  const userId = 'user-' + Math.random().toString(36).substr(2, 9);  // случайный ID
 
   // Функция отправки сообщений
   function send() {
     const username = document.getElementById('username').value.trim();
     const message = document.getElementById('message').value.trim();
-    const uniqueUsername = `${username}_${uniqueId}`; // Уникальное имя с ID
-
     if (username !== "" && message !== "") {
+      const uniqueUsername = username + " (" + userId + ")";  // добавление уникального ID к имени
       push(chatRef, { name: uniqueUsername, text: message });
       document.getElementById('message').value = ""; // очищаем поле после отправки
     }

@@ -40,12 +40,22 @@
   const db = getDatabase(app);
   const chatRef = ref(db, 'chat');
 
+  // Функция для генерации случайного уникального ID
+  function generateUniqueId() {
+    return 'user_' + Math.random().toString(36).substr(2, 9); // Генерируем уникальный ID
+  }
+
+  // Уникальный ID для текущего сеанса
+  const uniqueId = generateUniqueId();
+
   // Функция отправки сообщений
   function send() {
     const username = document.getElementById('username').value.trim();
     const message = document.getElementById('message').value.trim();
+    const uniqueUsername = `${username}_${uniqueId}`; // Уникальное имя с ID
+
     if (username !== "" && message !== "") {
-      push(chatRef, { name: username, text: message });
+      push(chatRef, { name: uniqueUsername, text: message });
       document.getElementById('message').value = ""; // очищаем поле после отправки
     }
   }

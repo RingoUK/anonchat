@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>AnonChat</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #1e1e1e; color: white; text-align: center; }
+    #messages { max-width: 600px; margin: 20px auto; padding: 10px; background: #333; border-radius: 8px; text-align: left; min-height: 300px; overflow-y: auto; }
+    input { padding: 10px; margin: 5px; width: 200px; border: none; border-radius: 5px; }
+    button { padding: 10px 20px; border: none; border-radius: 5px; background: #00aaff; color: white; cursor: pointer; }
+    button:hover { background: #0088cc; }
+  </style>
+</head>
+<body>
+
+<h1>💬 AnonChat</h1>
+
+<div id="messages"></div>
+
+<input type="text" id="username" placeholder="Ваше имя">
+<input type="text" id="message" placeholder="Сообщение">
+<button onclick="send()">Отправить</button>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+  import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCGozdl3W09ceRkz_4rwsRpeJH8JjkDZlo",
+    authDomain: "anonchat-dbaa3.firebaseapp.com",
+    databaseURL: "https://anonchat-dbaa3-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "anonchat-dbaa3",
+    storageBucket: "anonchat-dbaa3.firebasestorage.app",
+    messagingSenderId: "632248932714",
+    appId: "1:632248932714:web:be9d7488cb0894e9152d13",
+    measurementId: "G-BH7V1HKNMG"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const chatRef = ref(db, 'chat');
+
+  function send() {
+    const username = document.getElementById('username').value.trim();
+    const message = document.getElementById('message').value.trim();
+    if(username !== "" && message !== "") {
+      push(chatRef, { name: username, text: message });
+      document.getElementById('message').value = "";
+    }
+  }
+
+  const messagesDiv = document.getElementById('messages');
+
+  onChildAdded(chatRef, (data) => {
+    const { name, text } = data.val();
+    const div = document.createElement('div');
+    div.textContent = `${name}: ${text}`;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  });
+</script>
+
+</body>
+</html>

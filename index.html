@@ -23,7 +23,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+  import { getDatabase, ref, push, onChildAdded, remove, child, get } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCGozdl3W09ceRkz_4rwsRpeJH8JjkDZlo",
@@ -41,31 +41,51 @@
   const chatRef = ref(db, 'chat');
 
   // Генерация уникального ID для сессии
-  const userId = 'user-' + Math.random().toString(36).substr(2, 9);  // случайный ID
+  const userId = 'user-' + Math.random().toString(36).substr(2, 9);
 
-  // Функция отправки сообщений
+  // Отправка сообщения с текущим временем
   function send() {
     const username = document.getElementById('username').value.trim();
     const message = document.getElementById('message').value.trim();
     if (username !== "" && message !== "") {
-      const uniqueUsername = username + " (" + userId + ")";  // добавление уникального ID к имени
-      push(chatRef, { name: uniqueUsername, text: message });
-      document.getElementById('message').value = ""; // очищаем поле после отправки
+      const uniqueUsername = username + " (" + userId + ")";
+      const timestamp = Date.now(); // текущее время в мс
+      push(chatRef, { name: uniqueUsername, text: message, time: timestamp });
+      document.getElementById('message').value = "";
     }
   }
 
-  // Обработчик для кнопки отправки
   document.getElementById('sendButton').addEventListener('click', send);
 
-  // Обработка новых сообщений в чате
   const messagesDiv = document.getElementById('messages');
 
+  // Проверка и удаление старых сообщений
+  async function cleanOldMessages() {
+    const snapshot = await get(chatRef);
+    if (snapshot.exists()) {
+      const now = Date.now();
+      snapshot.forEach(childSnapshot => {
+        const data = childSnapshot.val();
+        if (data.time && now - data.time > 24 * 60 * 60 * 1000) { // если сообщение старше 24 часов
+          remove(child(chatRef, childSnapshot.key));
+        }
+      });
+    }
+  }
+
+  cleanOldMessages();  // вызываем очистку при загрузке страницы
+
+  // Получение новых сообщений
   onChildAdded(chatRef, (data) => {
-    const { name, text } = data.val();
-    const div = document.createElement('div');
-    div.textContent = `${name}: ${text}`;
-    messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight; // скроллим вниз
+    const { name, text, time } = data.val();
+    const now = Date.now();
+    // показываем только свежие сообщения (меньше 24 часов)
+    if (!time || now - time <= 24 * 60 * 60 * 1000) {
+      const div = document.createElement('div');
+      div.textContent = `${name}: ${text}`;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
   });
 </script>
 

@@ -94,7 +94,8 @@
     }
   };
 
-  let notificationsEnabled = false;
+  // Загружаем состояние уведомлений из localStorage
+  let notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
 
   function applyTranslations() {
     document.getElementById('username').placeholder = translations[currentLang].namePlaceholder;
@@ -113,6 +114,8 @@
 
   window.toggleNotifications = function() {
     notificationsEnabled = !notificationsEnabled;
+    // Сохраняем состояние уведомлений в localStorage
+    localStorage.setItem('notificationsEnabled', notificationsEnabled);
     applyTranslations();
   };
 
@@ -177,3 +180,4 @@
 
 </body>
 </html>
+

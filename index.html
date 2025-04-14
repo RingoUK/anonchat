@@ -14,13 +14,13 @@
 <body>
 
 <h1>💬 AnonChat</h1>
+<button onclick="toggleLanguage()" id="langToggle">EN</button>
 
 <div id="messages"></div>
 
 <input type="text" id="username" placeholder="Ваше имя">
 <input type="text" id="message" placeholder="Сообщение">
 <button id="sendButton">Отправить</button>
-<button id="notifyButton">🔔 Включить уведомления</button>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
@@ -40,8 +40,43 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const chatRef = ref(db, 'chat');
-
   const userId = 'user-' + Math.random().toString(36).substr(2, 9);
+
+  let currentLang = 'ru';
+  const translations = {
+    ru: {
+      namePlaceholder: "Ваше имя",
+      messagePlaceholder: "Сообщение",
+      sendButton: "Отправить",
+      justNow: "Только что",
+      minutesAgo: min => `${min} минут${min === 1 ? 'у' : 'ы'} назад`,
+      hoursAgo: hr => `${hr} час${hr === 1 ? 'а' : 'ов'} назад`,
+      dayAgo: "Больше суток назад"
+    },
+    en: {
+      namePlaceholder: "Your name",
+      messagePlaceholder: "Message",
+      sendButton: "Send",
+      justNow: "Just now",
+      minutesAgo: min => `${min} minute${min === 1 ? '' : 's'} ago`,
+      hoursAgo: hr => `${hr} hour${hr === 1 ? '' : 's'} ago`,
+      dayAgo: "More than a day ago"
+    }
+  };
+
+  function applyTranslations() {
+    document.getElementById('username').placeholder = translations[currentLang].namePlaceholder;
+    document.getElementById('message').placeholder = translations[currentLang].messagePlaceholder;
+    document.getElementById('sendButton').textContent = translations[currentLang].sendButton;
+    document.getElementById('langToggle').textContent = currentLang === 'ru' ? 'EN' : 'RU';
+  }
+
+  window.toggleLanguage = function() {
+    currentLang = currentLang === 'ru' ? 'en' : 'ru';
+    applyTranslations();
+  }
+
+  applyTranslations();
 
   function send() {
     const username = document.getElementById('username').value.trim();
@@ -55,16 +90,16 @@
   }
 
   document.getElementById('sendButton').addEventListener('click', send);
-
   const messagesDiv = document.getElementById('messages');
 
   function formatTime(time) {
     const now = Date.now();
     const diff = now - time;
-    if (diff < 60 * 1000) return "Только что";
-    else if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))} мин. назад`;
-    else if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))} ч. назад`;
-    else return "Больше суток назад";
+
+    if (diff < 60 * 1000) return translations[currentLang].justNow;
+    if (diff < 60 * 60 * 1000) return translations[currentLang].minutesAgo(Math.floor(diff / (60 * 1000)));
+    if (diff < 24 * 60 * 60 * 1000) return translations[currentLang].hoursAgo(Math.floor(diff / (60 * 60 * 1000)));
+    return translations[currentLang].dayAgo;
   }
 
   async function cleanOldMessages() {
@@ -82,51 +117,21 @@
 
   cleanOldMessages();
 
-  let lastMessageTime = 0;
-  let notificationsAllowed = false;
-
-  document.getElementById('notifyButton').addEventListener('click', () => {
-    if (!("Notification" in window)) {
-      alert("Ваш браузер не поддерживает уведомления!");
-    } else if (Notification.permission === "granted") {
-      notificationsAllowed = true;
-      alert("Уведомления уже разрешены!");
-    } else if (Notification.permission !== "denied") {
-      Notification.requestPermission().then(permission => {
-        if (permission === "granted") {
-          notificationsAllowed = true;
-          alert("Уведомления включены!");
-        }
-      });
-    }
-  });
-
   onChildAdded(chatRef, (data) => {
     const { name, text, time } = data.val();
     const now = Date.now();
-
     if (!time || now - time <= 24 * 60 * 60 * 1000) {
       const timeAgo = formatTime(time);
       const div = document.createElement('div');
       div.innerHTML = `<strong>${name}</strong> (${timeAgo}): ${text}`;
       messagesDiv.appendChild(div);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-      // Отправляем уведомление если сообщение свежее
-      if (notificationsAllowed && time > lastMessageTime && !name.includes(userId)) {
-        new Notification(`Сообщение от ${name}`, {
-          body: text,
-          icon: 'https://cdn-icons-png.flaticon.com/512/616/616408.png' // можно указать свою иконку
-        });
-      }
-      if (time > lastMessageTime) lastMessageTime = time;
     }
   });
 </script>
 
 </body>
 </html>
-
 
 
 

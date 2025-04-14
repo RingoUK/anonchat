@@ -20,6 +20,7 @@
 <input type="text" id="username" placeholder="Ваше имя">
 <input type="text" id="message" placeholder="Сообщение">
 <button id="sendButton">Отправить</button>
+<button id="notifyButton">🔔 Включить уведомления</button>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
@@ -40,16 +41,14 @@
   const db = getDatabase(app);
   const chatRef = ref(db, 'chat');
 
-  // Генерация уникального ID для сессии
   const userId = 'user-' + Math.random().toString(36).substr(2, 9);
 
-  // Отправка сообщения с текущим временем
   function send() {
     const username = document.getElementById('username').value.trim();
     const message = document.getElementById('message').value.trim();
     if (username !== "" && message !== "") {
       const uniqueUsername = username + " (" + userId + ")";
-      const timestamp = Date.now(); // текущее время в мс
+      const timestamp = Date.now();
       push(chatRef, { name: uniqueUsername, text: message, time: timestamp });
       document.getElementById('message').value = "";
     }
@@ -59,51 +58,68 @@
 
   const messagesDiv = document.getElementById('messages');
 
-  // Функция для форматирования времени
   function formatTime(time) {
     const now = Date.now();
     const diff = now - time;
-
-    if (diff < 60 * 1000) { // менее 1 минуты
-      return "Только что";
-    } else if (diff < 60 * 60 * 1000) { // менее 1 часа
-      const minutes = Math.floor(diff / (60 * 1000));
-      return `${minutes} минут${minutes === 1 ? 'у' : 'ы'} назад`;
-    } else if (diff < 24 * 60 * 60 * 1000) { // менее 1 дня
-      const hours = Math.floor(diff / (60 * 60 * 1000));
-      return `${hours} час${hours === 1 ? 'а' : 'ов'} назад`;
-    } else {
-      return "Больше суток назад";
-    }
+    if (diff < 60 * 1000) return "Только что";
+    else if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))} мин. назад`;
+    else if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))} ч. назад`;
+    else return "Больше суток назад";
   }
 
-  // Проверка и удаление старых сообщений
   async function cleanOldMessages() {
     const snapshot = await get(chatRef);
     if (snapshot.exists()) {
       const now = Date.now();
       snapshot.forEach(childSnapshot => {
         const data = childSnapshot.val();
-        if (data.time && now - data.time > 24 * 60 * 60 * 1000) { // если сообщение старше 24 часов
+        if (data.time && now - data.time > 24 * 60 * 60 * 1000) {
           remove(child(chatRef, childSnapshot.key));
         }
       });
     }
   }
 
-  cleanOldMessages();  // вызываем очистку при загрузке страницы
+  cleanOldMessages();
 
-  // Получение новых сообщений
+  let lastMessageTime = 0;
+  let notificationsAllowed = false;
+
+  document.getElementById('notifyButton').addEventListener('click', () => {
+    if (!("Notification" in window)) {
+      alert("Ваш браузер не поддерживает уведомления!");
+    } else if (Notification.permission === "granted") {
+      notificationsAllowed = true;
+      alert("Уведомления уже разрешены!");
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          notificationsAllowed = true;
+          alert("Уведомления включены!");
+        }
+      });
+    }
+  });
+
   onChildAdded(chatRef, (data) => {
     const { name, text, time } = data.val();
     const now = Date.now();
-    // показываем только свежие сообщения (меньше 24 часов)
+
     if (!time || now - time <= 24 * 60 * 60 * 1000) {
       const timeAgo = formatTime(time);
       const div = document.createElement('div');
       div.innerHTML = `<strong>${name}</strong> (${timeAgo}): ${text}`;
       messagesDiv.appendChild(div);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      // Отправляем уведомление если сообщение свежее
+      if (notificationsAllowed && time > lastMessageTime && !name.includes(userId)) {
+        new Notification(`Сообщение от ${name}`, {
+          body: text,
+          icon: 'https://cdn-icons-png.flaticon.com/512/616/616408.png' // можно указать свою иконку
+        });
+      }
+      if (time > lastMessageTime) lastMessageTime = time;
     }
   });
 </script>

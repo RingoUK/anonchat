@@ -32,6 +32,13 @@
     #buttonsContainer button {
       margin: 5px;
     }
+
+    /* Стиль для отображения текста "Печатает..." */
+    #typingIndicator {
+      color: #888;
+      font-style: italic;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -43,6 +50,8 @@
   <button onclick="toggleLanguage()" id="langToggle">EN</button>
   <button onclick="toggleNotifications()" id="notifyToggle">Включить уведомления</button>
 </div>
+
+<div id="typingIndicator"></div> <!-- Место для отображения "Печатает..." -->
 
 <div id="messages"></div>
 
@@ -80,7 +89,8 @@
       minutesAgo: min => `${min} минут${min === 1 ? 'у' : 'ы'} назад`,
       hoursAgo: hr => `${hr} час${hr === 1 ? 'а' : 'ов'} назад`,
       dayAgo: "Больше суток назад",
-      notifyButton: "Включить уведомления"
+      notifyButton: "Включить уведомления",
+      typingIndicator: "Печатает..."
     },
     en: {
       namePlaceholder: "Your name",
@@ -90,7 +100,8 @@
       minutesAgo: min => `${min} minute${min === 1 ? '' : 's'} ago`,
       hoursAgo: hr => `${hr} hour${hr === 1 ? '' : 's'} ago`,
       dayAgo: "More than a day ago",
-      notifyButton: "Enable Notifications"
+      notifyButton: "Enable Notifications",
+      typingIndicator: "Typing..."
     }
   };
 
@@ -105,6 +116,7 @@
     document.getElementById('notifyToggle').textContent = notificationsEnabled
       ? (currentLang === 'ru' ? "Выключить уведомления" : "Disable Notifications")
       : (currentLang === 'ru' ? "Включить уведомления" : "Enable Notifications");
+    document.getElementById('typingIndicator').textContent = translations[currentLang].typingIndicator;
   }
 
   window.toggleLanguage = function() {
@@ -121,6 +133,17 @@
 
   applyTranslations();
 
+  // Отображаем "Печатает..." или "Typing..."
+  let typingTimeout;
+  function showTypingIndicator() {
+    document.getElementById('typingIndicator').style.display = 'block';
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      document.getElementById('typingIndicator').style.display = 'none';
+    }, 3000);
+  }
+
+  // Отправка сообщения
   function send() {
     const username = document.getElementById('username').value.trim();
     const message = document.getElementById('message').value.trim();
@@ -135,6 +158,7 @@
   document.getElementById('sendButton').addEventListener('click', send);
   const messagesDiv = document.getElementById('messages');
 
+  // Обновление времени сообщений
   function formatTime(time) {
     const now = Date.now();
     const diff = now - time;
@@ -145,6 +169,7 @@
     return translations[currentLang].dayAgo;
   }
 
+  // Очистка старых сообщений
   async function cleanOldMessages() {
     const snapshot = await get(chatRef);
     if (snapshot.exists()) {
@@ -160,6 +185,7 @@
 
   cleanOldMessages();
 
+  // Когда новое сообщение приходит
   onChildAdded(chatRef, (data) => {
     const { name, text, time } = data.val();
     const now = Date.now();
@@ -176,8 +202,12 @@
       }
     }
   });
+
+  // Реагирование на ввод текста
+  document.getElementById('message').addEventListener('input', showTypingIndicator);
 </script>
 
 </body>
 </html>
+
 

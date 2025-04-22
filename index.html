@@ -86,8 +86,8 @@
       messagePlaceholder: "Сообщение",
       sendButton: "Отправить",
       justNow: "Только что",
-      minutesAgo: min => `${min} минут${min === 1 ? 'у' : 'ы'} назад`,
-      hoursAgo: hr => `${hr} час${hr === 1 ? 'а' : 'ов'} назад`,
+      minutesAgo: min => ${min} минут${min === 1 ? 'у' : 'ы'} назад,
+      hoursAgo: hr => ${hr} час${hr === 1 ? 'а' : 'ов'} назад,
       dayAgo: "Больше суток назад",
       notifyButton: "Включить уведомления",
       typingIndicator: "Печатает..."
@@ -97,8 +97,8 @@
       messagePlaceholder: "Message",
       sendButton: "Send",
       justNow: "Just now",
-      minutesAgo: min => `${min} minute${min === 1 ? '' : 's'} ago`,
-      hoursAgo: hr => `${hr} hour${hr === 1 ? '' : 's'} ago`,
+      minutesAgo: min => ${min} minute${min === 1 ? '' : 's'} ago,
+      hoursAgo: hr => ${hr} hour${hr === 1 ? '' : 's'} ago,
       dayAgo: "More than a day ago",
       notifyButton: "Enable Notifications",
       typingIndicator: "Typing..."
@@ -140,7 +140,7 @@
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
       document.getElementById('typingIndicator').style.display = 'none';
-    }, 1000); // Печатает исчезает через 1 секунду
+    }, 3000);
   }
 
   // Отправка сообщения
@@ -192,13 +192,13 @@
     if (!time || now - time <= 24 * 60 * 60 * 1000) {
       const timeAgo = formatTime(time);
       const div = document.createElement('div');
-      div.innerHTML = `<strong>${name}</strong> (${timeAgo}): ${text}`;
+      div.innerHTML = <strong>${name}</strong> (${timeAgo}): ${text};
       messagesDiv.appendChild(div);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
       // Показывать уведомление, если включены уведомления
       if (notificationsEnabled) {
-        new Notification(`${name}: ${text}`);
+        new Notification(${name}: ${text});
       }
     }
   });
@@ -209,7 +209,3 @@
 
 </body>
 </html>
-
-
-
-

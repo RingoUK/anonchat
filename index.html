@@ -3,23 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <title>AnonChat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #1e1e1e;
       color: white;
+      text-align: center;
+      position: relative;
       margin: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100vh;
+      padding: 0;
     }
 
     #messages {
-      width: 90%;
       max-width: 600px;
-      margin: 20px 0;
+      margin: 20px auto;
       padding: 10px;
       background: #333;
       border-radius: 8px;
@@ -27,29 +24,36 @@
       min-height: 300px;
       overflow-y: auto;
       max-height: 400px;
-      box-sizing: border-box;
-      flex: 1;
     }
 
-    input {
+    #formContainer {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 10px;
+    }
+
+    #formContainer input {
       padding: 10px;
       margin: 5px;
-      width: calc(50% - 20px);
+      width: 200px;
       border: none;
       border-radius: 5px;
-      box-sizing: border-box;
     }
 
-    button {
+    #formContainer button {
       padding: 10px 20px;
       border: none;
       border-radius: 5px;
       background: #00aaff;
       color: white;
       cursor: pointer;
+      margin: 5px;
     }
 
-    button:hover {
+    #formContainer button:hover {
       background: #0088cc;
     }
 
@@ -69,160 +73,177 @@
       color: #888;
       font-style: italic;
       font-size: 14px;
-      height: 20px;
-      margin-bottom: 5px;
+      display: none;
+      margin-top: 5px;
     }
 
     @media (max-width: 600px) {
-      input {
-        width: 100%;
-        margin: 5px 0;
+      #formContainer {
+        flex-direction: column;
       }
-      button {
-        width: 100%;
-        margin: 5px 0;
+
+      #formContainer input, #formContainer button {
+        width: 90%;
       }
     }
   </style>
 </head>
 <body>
 <h1>💬 AnonChat</h1>
+
 <div id="buttonsContainer">
   <button onclick="toggleLanguage()" id="langToggle">EN</button>
   <button onclick="toggleNotifications()" id="notifyToggle">Включить уведомления</button>
 </div>
+
 <div id="typingIndicator"></div>
 <div id="messages"></div>
-<input type="text" id="username" placeholder="Ваше имя">
-<input type="text" id="message" placeholder="Сообщение">
-<button id="sendButton">Отправить</button>
+
+<div id="formContainer">
+  <input type="text" id="username" placeholder="Ваше имя">
+  <input type="text" id="message" placeholder="Сообщение">
+  <button id="sendButton">Отправить</button>
+</div>
+
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded, remove, child, get, onDisconnect, set } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+  import { getDatabase, ref, push, onChildAdded, remove, child, get } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCGozdl3W09ceRkz_4rwsRpeJH8JjkDZlo",
-  authDomain: "anonchat-dbaa3.firebaseapp.com",
-  databaseURL: "https://anonchat-dbaa3-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "anonchat-dbaa3",
-  storageBucket: "anonchat-dbaa3.firebasestorage.app",
-  messagingSenderId: "632248932714",
-  appId: "1:632248932714:web:be9d7488cb0894e9152d13",
-  measurementId: "G-BH7V1HKNMG"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyCGozdl3W09ceRkz_4rwsRpeJH8JjkDZlo",
+    authDomain: "anonchat-dbaa3.firebaseapp.com",
+    databaseURL: "https://anonchat-dbaa3-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "anonchat-dbaa3",
+    storageBucket: "anonchat-dbaa3.appspot.com",
+    messagingSenderId: "632248932714",
+    appId: "1:632248932714:web:be9d7488cb0894e9152d13",
+    measurementId: "G-BH7V1HKNMG"
+  };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const chatRef = ref(db, 'chat');
-const typingRef = ref(db, 'typing');
-const userId = 'user-' + Math.random().toString(36).substr(2, 9);
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const chatRef = ref(db, 'chat');
+  const userId = 'user-' + Math.random().toString(36).substr(2, 9);
 
-let currentLang = 'ru';
-const translations = {
-  ru: { namePlaceholder: "Ваше имя", messagePlaceholder: "Сообщение", sendButton: "Отправить", justNow: "Только что", minutesAgo: min => `${min} минут${min === 1 ? 'у' : 'ы'} назад`, hoursAgo: hr => `${hr} час${hr === 1 ? 'а' : 'ов'} назад`, dayAgo: "Больше суток назад", notifyButton: "Включить уведомления", typingIndicator: "Печатает..." },
-  en: { namePlaceholder: "Your name", messagePlaceholder: "Message", sendButton: "Send", justNow: "Just now", minutesAgo: min => `${min} minute${min === 1 ? '' : 's'} ago`, hoursAgo: hr => `${hr} hour${hr === 1 ? '' : 's'} ago`, dayAgo: "More than a day ago", notifyButton: "Enable Notifications", typingIndicator: "Typing..." }
-};
+  let currentLang = 'ru';
+  const translations = {
+    ru: {
+      namePlaceholder: "Ваше имя",
+      messagePlaceholder: "Сообщение",
+      sendButton: "Отправить",
+      justNow: "Только что",
+      minutesAgo: min => `${min} минут${min === 1 ? 'у' : 'ы'} назад`,
+      hoursAgo: hr => `${hr} час${hr === 1 ? 'а' : 'ов'} назад`,
+      dayAgo: "Больше суток назад",
+      notifyButton: "Включить уведомления",
+      typingIndicator: "Печатает..."
+    },
+    en: {
+      namePlaceholder: "Your name",
+      messagePlaceholder: "Message",
+      sendButton: "Send",
+      justNow: "Just now",
+      minutesAgo: min => `${min} minute${min === 1 ? '' : 's'} ago`,
+      hoursAgo: hr => `${hr} hour${hr === 1 ? '' : 's'} ago`,
+      dayAgo: "More than a day ago",
+      notifyButton: "Enable Notifications",
+      typingIndicator: "Typing..."
+    }
+  };
 
-let notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
+  let notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
 
-function applyTranslations() {
-  document.getElementById('username').placeholder = translations[currentLang].namePlaceholder;
-  document.getElementById('message').placeholder = translations[currentLang].messagePlaceholder;
-  document.getElementById('sendButton').textContent = translations[currentLang].sendButton;
-  document.getElementById('langToggle').textContent = currentLang === 'ru' ? 'EN' : 'RU';
-  document.getElementById('notifyToggle').textContent = notificationsEnabled ? (currentLang === 'ru' ? "Выключить уведомления" : "Disable Notifications") : (currentLang === 'ru' ? "Включить уведомления" : "Enable Notifications");
-}
-
-window.toggleLanguage = function() {
-  currentLang = currentLang === 'ru' ? 'en' : 'ru';
-  applyTranslations();
-};
-
-window.toggleNotifications = function() {
-  notificationsEnabled = !notificationsEnabled;
-  localStorage.setItem('notificationsEnabled', notificationsEnabled);
-  applyTranslations();
-};
-
-applyTranslations();
-
-function send() {
-  const username = document.getElementById('username').value.trim();
-  const message = document.getElementById('message').value.trim();
-  if (username !== "" && message !== "") {
-    const uniqueUsername = username + " (" + userId + ")";
-    const timestamp = Date.now();
-    push(chatRef, { name: uniqueUsername, text: message, time: timestamp });
-    document.getElementById('message').value = "";
-    set(typingRef, null);
+  function applyTranslations() {
+    document.getElementById('username').placeholder = translations[currentLang].namePlaceholder;
+    document.getElementById('message').placeholder = translations[currentLang].messagePlaceholder;
+    document.getElementById('sendButton').textContent = translations[currentLang].sendButton;
+    document.getElementById('langToggle').textContent = currentLang === 'ru' ? 'EN' : 'RU';
+    document.getElementById('notifyToggle').textContent = notificationsEnabled
+      ? (currentLang === 'ru' ? "Выключить уведомления" : "Disable Notifications")
+      : (currentLang === 'ru' ? "Включить уведомления" : "Enable Notifications");
   }
-}
 
-const messageInput = document.getElementById('message');
-const typingIndicator = document.getElementById('typingIndicator');
+  window.toggleLanguage = function() {
+    currentLang = currentLang === 'ru' ? 'en' : 'ru';
+    applyTranslations();
+  };
 
-messageInput.addEventListener('input', () => {
-  if (document.getElementById('username').value.trim() !== "") {
-    set(typingRef, userId);
+  window.toggleNotifications = function() {
+    notificationsEnabled = !notificationsEnabled;
+    localStorage.setItem('notificationsEnabled', notificationsEnabled);
+    applyTranslations();
+  };
+
+  applyTranslations();
+
+  let typingTimeout;
+  function showTypingIndicator() {
+    if (document.getElementById('username').value.trim() === '') return;
+    document.getElementById('typingIndicator').style.display = 'block';
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      document.getElementById('typingIndicator').style.display = 'none';
+    }, 3000);
   }
-});
 
-onDisconnect(typingRef).remove();
+  document.getElementById('message').addEventListener('input', showTypingIndicator);
 
-onChildAdded(chatRef, (data) => {
-  const { name, text, time } = data.val();
-  const now = Date.now();
-  if (!time || now - time <= 24 * 60 * 60 * 1000) {
-    const timeAgo = formatTime(time);
-    const div = document.createElement('div');
-    div.innerHTML = `<strong>${name}</strong> (${timeAgo}): ${text}`;
-    messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    if (notificationsEnabled && name.indexOf(userId) === -1) {
-      new Notification(`${name}: ${text}`);
+  function send() {
+    const username = document.getElementById('username').value.trim();
+    const message = document.getElementById('message').value.trim();
+    if (username !== "" && message !== "") {
+      const uniqueUsername = username + " (" + userId + ")";
+      const timestamp = Date.now();
+      push(chatRef, { name: uniqueUsername, text: message, time: timestamp });
+      document.getElementById('message').value = "";
     }
   }
-});
 
-function formatTime(time) {
-  const now = Date.now();
-  const diff = now - time;
-  if (diff < 60000) return translations[currentLang].justNow;
-  if (diff < 3600000) return translations[currentLang].minutesAgo(Math.floor(diff / 60000));
-  if (diff < 86400000) return translations[currentLang].hoursAgo(Math.floor(diff / 3600000));
-  return translations[currentLang].dayAgo;
-}
+  document.getElementById('sendButton').addEventListener('click', send);
 
-function updateTypingStatus() {
-  get(typingRef).then(snapshot => {
-    const typingUser = snapshot.val();
-    if (typingUser && typingUser !== userId) {
-      typingIndicator.textContent = translations[currentLang].typingIndicator;
-    } else {
-      typingIndicator.textContent = "";
+  const messagesDiv = document.getElementById('messages');
+
+  function formatTime(time) {
+    const now = Date.now();
+    const diff = now - time;
+
+    if (diff < 60 * 1000) return translations[currentLang].justNow;
+    if (diff < 60 * 60 * 1000) return translations[currentLang].minutesAgo(Math.floor(diff / (60 * 1000)));
+    if (diff < 24 * 60 * 60 * 1000) return translations[currentLang].hoursAgo(Math.floor(diff / (60 * 60 * 1000)));
+    return translations[currentLang].dayAgo;
+  }
+
+  async function cleanOldMessages() {
+    const snapshot = await get(chatRef);
+    if (snapshot.exists()) {
+      const now = Date.now();
+      snapshot.forEach(childSnapshot => {
+        const data = childSnapshot.val();
+        if (data.time && now - data.time > 24 * 60 * 60 * 1000) {
+          remove(child(chatRef, childSnapshot.key));
+        }
+      });
+    }
+  }
+
+  cleanOldMessages();
+
+  onChildAdded(chatRef, (data) => {
+    const { name, text, time } = data.val();
+    const now = Date.now();
+    if (!time || now - time <= 24 * 60 * 60 * 1000) {
+      const timeAgo = formatTime(time);
+      const div = document.createElement('div');
+      div.innerHTML = `<strong>${name}</strong> (${timeAgo}): ${text}`;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      if (notificationsEnabled && Notification.permission === "granted") {
+        new Notification(`${name}: ${text}`);
+      }
     }
   });
-}
-
-setInterval(updateTypingStatus, 1000);
-
-const messagesDiv = document.getElementById('messages');
-
-async function cleanOldMessages() {
-  const snapshot = await get(chatRef);
-  if (snapshot.exists()) {
-    const now = Date.now();
-    snapshot.forEach(childSnapshot => {
-      const data = childSnapshot.val();
-      if (data.time && now - data.time > 86400000) {
-        remove(child(chatRef, childSnapshot.key));
-      }
-    });
-  }
-}
-
-cleanOldMessages();
-
 </script>
+
 </body>
 </html>

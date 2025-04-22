@@ -14,13 +14,11 @@
       text-align: left; 
       min-height: 300px; 
       overflow-y: auto; 
-      max-height: 400px; /* Ограничим высоту чата */
+      max-height: 400px;
     }
     input { padding: 10px; margin: 5px; width: 200px; border: none; border-radius: 5px; }
     button { padding: 10px 20px; border: none; border-radius: 5px; background: #00aaff; color: white; cursor: pointer; }
     button:hover { background: #0088cc; }
-
-    /* Кнопки справа */
     #buttonsContainer {
       position: absolute;
       top: 20px;
@@ -28,12 +26,9 @@
       display: flex;
       flex-direction: column;
     }
-
     #buttonsContainer button {
       margin: 5px;
     }
-
-    /* Стиль для отображения текста "Печатает..." */
     #typingIndicator {
       color: #888;
       font-style: italic;
@@ -45,14 +40,12 @@
 
 <h1>💬 AnonChat</h1>
 
-<!-- Контейнер с кнопками справа -->
 <div id="buttonsContainer">
   <button onclick="toggleLanguage()" id="langToggle">EN</button>
   <button onclick="toggleNotifications()" id="notifyToggle">Включить уведомления</button>
 </div>
 
-<div id="typingIndicator"></div> <!-- Место для отображения "Печатает..." -->
-
+<div id="typingIndicator"></div>
 <div id="messages"></div>
 
 <input type="text" id="username" placeholder="Ваше имя">
@@ -86,8 +79,8 @@
       messagePlaceholder: "Сообщение",
       sendButton: "Отправить",
       justNow: "Только что",
-      minutesAgo: min => ${min} минут${min === 1 ? 'у' : 'ы'} назад,
-      hoursAgo: hr => ${hr} час${hr === 1 ? 'а' : 'ов'} назад,
+      minutesAgo: min => `${min} минут${min === 1 ? 'у' : 'ы'} назад`,
+      hoursAgo: hr => `${hr} час${hr === 1 ? 'а' : 'ов'} назад`,
       dayAgo: "Больше суток назад",
       notifyButton: "Включить уведомления",
       typingIndicator: "Печатает..."
@@ -97,15 +90,14 @@
       messagePlaceholder: "Message",
       sendButton: "Send",
       justNow: "Just now",
-      minutesAgo: min => ${min} minute${min === 1 ? '' : 's'} ago,
-      hoursAgo: hr => ${hr} hour${hr === 1 ? '' : 's'} ago,
+      minutesAgo: min => `${min} minute${min === 1 ? '' : 's'} ago`,
+      hoursAgo: hr => `${hr} hour${hr === 1 ? '' : 's'} ago`,
       dayAgo: "More than a day ago",
       notifyButton: "Enable Notifications",
       typingIndicator: "Typing..."
     }
   };
 
-  // Загружаем состояние уведомлений из localStorage
   let notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
 
   function applyTranslations() {
@@ -126,14 +118,12 @@
 
   window.toggleNotifications = function() {
     notificationsEnabled = !notificationsEnabled;
-    // Сохраняем состояние уведомлений в localStorage
     localStorage.setItem('notificationsEnabled', notificationsEnabled);
     applyTranslations();
   };
 
   applyTranslations();
 
-  // Отображаем "Печатает..." или "Typing..."
   let typingTimeout;
   function showTypingIndicator() {
     document.getElementById('typingIndicator').style.display = 'block';
@@ -143,7 +133,6 @@
     }, 3000);
   }
 
-  // Отправка сообщения
   function send() {
     const username = document.getElementById('username').value.trim();
     const message = document.getElementById('message').value.trim();
@@ -156,9 +145,10 @@
   }
 
   document.getElementById('sendButton').addEventListener('click', send);
+  document.getElementById('message').addEventListener('input', showTypingIndicator);
+
   const messagesDiv = document.getElementById('messages');
 
-  // Обновление времени сообщений
   function formatTime(time) {
     const now = Date.now();
     const diff = now - time;
@@ -169,7 +159,6 @@
     return translations[currentLang].dayAgo;
   }
 
-  // Очистка старых сообщений
   async function cleanOldMessages() {
     const snapshot = await get(chatRef);
     if (snapshot.exists()) {
@@ -185,26 +174,21 @@
 
   cleanOldMessages();
 
-  // Когда новое сообщение приходит
   onChildAdded(chatRef, (data) => {
     const { name, text, time } = data.val();
     const now = Date.now();
     if (!time || now - time <= 24 * 60 * 60 * 1000) {
       const timeAgo = formatTime(time);
       const div = document.createElement('div');
-      div.innerHTML = <strong>${name}</strong> (${timeAgo}): ${text};
+      div.innerHTML = `<strong>${name}</strong> (${timeAgo}): ${text}`;
       messagesDiv.appendChild(div);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-      // Показывать уведомление, если включены уведомления
       if (notificationsEnabled) {
-        new Notification(${name}: ${text});
+        new Notification(`${name}: ${text}`);
       }
     }
   });
-
-  // Реагирование на ввод текста
-  document.getElementById('message').addEventListener('input', showTypingIndicator);
 </script>
 
 </body>

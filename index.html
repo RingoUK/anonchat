@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AnonChat</title>
   <style>
     body {
@@ -26,18 +27,18 @@
       max-height: 400px;
     }
 
-    input, button {
+    input {
       padding: 10px;
       margin: 5px;
+      width: 200px;
       border: none;
       border-radius: 5px;
     }
 
-    input {
-      width: 200px;
-    }
-
     button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
       background: #00aaff;
       color: white;
       cursor: pointer;
@@ -57,26 +58,41 @@
 
     #buttonsContainer button {
       margin: 5px;
+      background-color: #00aaff;
+      color: white;
     }
 
     #typingIndicator {
       color: #888;
       font-style: italic;
       font-size: 14px;
+      margin-bottom: 5px;
       height: 18px;
+    }
+
+    .input-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
       margin-top: 10px;
     }
 
-    .input-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-wrap: wrap;
+    .input-row input,
+    .input-row button {
+      margin: 5px;
     }
 
-    @media (min-width: 600px) {
-      .input-container {
-        flex-wrap: nowrap;
+    @media (max-width: 600px) {
+      .input-row {
+        flex-direction: column;
+      }
+
+      input {
+        width: 90%;
+      }
+
+      button {
+        width: 95%;
       }
     }
   </style>
@@ -93,7 +109,7 @@
 <div id="typingIndicator"></div>
 <div id="messages"></div>
 
-<div class="input-container">
+<div class="input-row">
   <input type="text" id="username" placeholder="Ваше имя">
   <input type="text" id="message" placeholder="Сообщение">
   <button id="sendButton">Отправить</button>
@@ -101,7 +117,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded, remove, child, get, set, onValue } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+  import { getDatabase, ref, push, onChildAdded, remove, child, get, onValue, set } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCGozdl3W09ceRkz_4rwsRpeJH8JjkDZlo",
@@ -110,7 +126,8 @@
     projectId: "anonchat-dbaa3",
     storageBucket: "anonchat-dbaa3.appspot.com",
     messagingSenderId: "632248932714",
-    appId: "1:632248932714:web:be9d7488cb0894e9152d13"
+    appId: "1:632248932714:web:be9d7488cb0894e9152d13",
+    measurementId: "G-BH7V1HKNMG"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -166,54 +183,82 @@
     notificationsEnabled = !notificationsEnabled;
     localStorage.setItem('notificationsEnabled', notificationsEnabled);
     applyTranslations();
-    if (notificationsEnabled && Notification.permission !== 'granted') {
-      Notification.requestPermission();
-    }
   };
 
   applyTranslations();
 
-  const usernameInput = document.getElementById('username');
-  const messageInput = document.getElementById('message');
-  const sendButton = document.getElementById('sendButton');
+  const messagesDiv = document.getElementById('messages');
+  const typingIndicator = document.getElementById('typingIndicator');
 
-  function send() {
-    const username = usernameInput.value.trim();
-    const message = messageInput.value.trim();
-    if (username && message) {
-      push(chatRef, {
-        name: username + " (" + userId + ")",
-        text: message,
-        time: Date.now()
-      });
-      messageInput.value = "";
-      set(typingRef, { user: userId, typing: false });
-    }
+  function showTypingStatus(isTyping) {
+    set(typingRef, isTyping ? userId : null);
   }
 
-  sendButton.addEventListener('click', send);
-  messageInput.addEventListener('keypress', e => {
-    if (e.key === 'Enter') send();
+  document.getElementById('message').addEventListener('input', () => {
+    showTypingStatus(true);
+    clearTimeout(window.typingTimeout);
+    window.typingTimeout = setTimeout(() => {
+      showTypingStatus(false);
+    }, 2000);
   });
 
-  messageInput.addEventListener('input', () => {
-    set(typingRef, { user: userId, typing: true });
-    setTimeout(() => {
-      set(typingRef, { user: userId, typing: false });
-    }, 3000);
+  onValue(typingRef, (snapshot) => {
+    const val = snapshot.val();
+    if (val && val !== userId) {
+      typingIndicator.textContent = translations[currentLang].typingIndicator;
+    } else {
+      typingIndicator.textContent = "";
+    }
   });
-
-  const messagesDiv = document.getElementById('messages');
-  const typingDiv = document.getElementById('typingIndicator');
 
   function formatTime(time) {
     const now = Date.now();
     const diff = now - time;
+
     if (diff < 60 * 1000) return translations[currentLang].justNow;
-    if (diff < 60 * 60 * 1000) return translations[currentLang].minutesAgo(Math.floor(diff / 60000));
-    if (diff < 86400000) return translations[currentLang].hoursAgo(Math.floor(diff / 3600000));
+    if (diff < 60 * 60 * 1000) return translations[currentLang].minutesAgo(Math.floor(diff / (60 * 1000)));
+    if (diff < 24 * 60 * 60 * 1000) return translations[currentLang].hoursAgo(Math.floor(diff / (60 * 60 * 1000)));
     return translations[currentLang].dayAgo;
   }
+
+  function send() {
+    const username = document.getElementById('username').value.trim();
+    const message = document.getElementById('message').value.trim();
+    if (username !== "" && message !== "") {
+      const uniqueUsername = username + " (" + userId + ")";
+      const timestamp = Date.now();
+      push(chatRef, { name: uniqueUsername, text: message, time: timestamp });
+      document.getElementById('message').value = "";
+      showTypingStatus(false);
+    }
+  }
+
+  document.getElementById('sendButton').addEventListener('click', send);
+  document.getElementById('message').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      send();
+    }
+  });
+
+  onChildAdded(chatRef, (data) => {
+    const { name, text, time } = data.val();
+    const now = Date.now();
+    if (!time || now - time <= 24 * 60 * 60 * 1000) {
+      const timeAgo = formatTime(time);
+      const div = document.createElement('div');
+      div.innerHTML = `<strong>${name}</strong> (${timeAgo}): ${text}`;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      if (notificationsEnabled && document.hidden) {
+        try {
+          new Notification(`${name}: ${text}`);
+        } catch (e) {
+          console.log('Уведомление не разрешено');
+        }
+      }
+    }
+  });
 
   async function cleanOldMessages() {
     const snapshot = await get(chatRef);
@@ -221,7 +266,7 @@
       const now = Date.now();
       snapshot.forEach(childSnapshot => {
         const data = childSnapshot.val();
-        if (data.time && now - data.time > 86400000) {
+        if (data.time && now - data.time > 24 * 60 * 60 * 1000) {
           remove(child(chatRef, childSnapshot.key));
         }
       });
@@ -230,26 +275,10 @@
 
   cleanOldMessages();
 
-  onChildAdded(chatRef, (data) => {
-    const { name, text, time } = data.val();
-    const div = document.createElement('div');
-    div.innerHTML = `<strong>${name}</strong> (${formatTime(time)}): ${text}`;
-    messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-    if (notificationsEnabled && document.hidden) {
-      new Notification(`${name}`, { body: text });
-    }
-  });
-
-  onValue(typingRef, (snapshot) => {
-    const val = snapshot.val();
-    if (val && val.typing && val.user !== userId) {
-      typingDiv.textContent = translations[currentLang].typingIndicator;
-    } else {
-      typingDiv.textContent = "";
-    }
-  });
+  if ('Notification' in window && Notification.permission !== 'granted') {
+    Notification.requestPermission();
+  }
 </script>
+
 </body>
 </html>

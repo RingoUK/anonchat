@@ -15,13 +15,9 @@
       padding: 0;
     }
 
-    h1 {
-      margin-top: 60px;
-    }
-
     #messages {
       max-width: 600px;
-      margin: 20px auto;
+      margin: 60px auto 20px auto;
       padding: 10px;
       background: #333;
       border-radius: 8px;
@@ -31,12 +27,22 @@
       max-height: 400px;
     }
 
+    #inputContainer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
     input[type="text"] {
       padding: 10px;
       margin: 5px;
-      width: 200px;
       border: none;
       border-radius: 5px;
+      flex: 1;
+      min-width: 120px;
+      max-width: 200px;
     }
 
     button {
@@ -53,62 +59,44 @@
     }
 
     #buttonsContainer {
-      position: fixed;
+      position: absolute;
       top: 10px;
       right: 10px;
       display: flex;
       flex-direction: column;
-      z-index: 999;
+      z-index: 1000;
     }
 
     #buttonsContainer button {
-      margin: 5px 0;
-      font-size: 14px;
-      padding: 5px 10px;
+      margin: 3px 0;
+      background: #00aaff;
+      color: white;
+    }
+
+    #typingWrapper {
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     #typingIndicator {
       color: #888;
       font-style: italic;
       font-size: 14px;
-      margin-bottom: 10px;
       display: none;
     }
 
     @media (max-width: 600px) {
-      input[type="text"] {
-        display: block;
-        width: 90%;
-        margin: 5px auto;
+      #inputContainer {
+        flex-direction: column;
       }
-
-      button#sendButton {
-        width: 94%;
-      }
-
       #buttonsContainer {
         flex-direction: row;
-        justify-content: center;
-        position: static;
-        margin-top: 10px;
-      }
-
-      #buttonsContainer button {
-        margin: 5px;
-      }
-    }
-
-    #inputContainer {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-
-    @media (min-width: 601px) {
-      #inputContainer {
-        flex-wrap: nowrap;
+        top: auto;
+        bottom: 10px;
+        left: 10px;
+        right: auto;
       }
     }
   </style>
@@ -122,7 +110,9 @@
   <button onclick="toggleNotifications()" id="notifyToggle">Включить уведомления</button>
 </div>
 
-<div id="typingIndicator"></div>
+<div id="typingWrapper">
+  <div id="typingIndicator"></div>
+</div>
 <div id="messages"></div>
 
 <div id="inputContainer">
@@ -133,7 +123,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded, remove, child, get, onValue, set } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+  import { getDatabase, ref, push, onChildAdded, remove, child, get, set, onValue } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCGozdl3W09ceRkz_4rwsRpeJH8JjkDZlo",
@@ -163,6 +153,7 @@
       hoursAgo: hr => `${hr} час${hr === 1 ? 'а' : 'ов'} назад`,
       dayAgo: "Больше суток назад",
       notifyButton: "Включить уведомления",
+      notifyOff: "Выключить уведомления",
       typingIndicator: "Печатает..."
     },
     en: {
@@ -174,6 +165,7 @@
       hoursAgo: hr => `${hr} hour${hr === 1 ? '' : 's'} ago`,
       dayAgo: "More than a day ago",
       notifyButton: "Enable Notifications",
+      notifyOff: "Disable Notifications",
       typingIndicator: "Typing..."
     }
   };
@@ -186,16 +178,16 @@
     document.getElementById('sendButton').textContent = translations[currentLang].sendButton;
     document.getElementById('langToggle').textContent = currentLang === 'ru' ? 'EN' : 'RU';
     document.getElementById('notifyToggle').textContent = notificationsEnabled
-      ? (currentLang === 'ru' ? "Выключить уведомления" : "Disable Notifications")
-      : (currentLang === 'ru' ? "Включить уведомления" : "Enable Notifications");
+      ? (currentLang === 'ru' ? translations.ru.notifyOff : translations.en.notifyOff)
+      : (currentLang === 'ru' ? translations.ru.notifyButton : translations.en.notifyButton);
   }
 
-  window.toggleLanguage = function () {
+  window.toggleLanguage = function() {
     currentLang = currentLang === 'ru' ? 'en' : 'ru';
     applyTranslations();
   };
 
-  window.toggleNotifications = function () {
+  window.toggleNotifications = function() {
     notificationsEnabled = !notificationsEnabled;
     localStorage.setItem('notificationsEnabled', notificationsEnabled);
     applyTranslations();
@@ -203,42 +195,59 @@
 
   applyTranslations();
 
+  let typingTimeout;
+  const typingIndicator = document.getElementById('typingIndicator');
+
   function send() {
     const username = document.getElementById('username').value.trim();
     const message = document.getElementById('message').value.trim();
-    if (username !== "" && message !== "") {
-      const uniqueUsername = username + " (" + userId + ")";
+    if (username && message) {
+      const fullName = username + " (" + userId + ")";
       const timestamp = Date.now();
-      push(chatRef, { name: uniqueUsername, text: message, time: timestamp });
+      push(chatRef, { name: fullName, text: message, time: timestamp });
+      set(child(typingRef, userId), null); // Удаляем "печатает"
       document.getElementById('message').value = "";
-      set(typingRef, { id: userId, typing: false });
     }
   }
 
   document.getElementById('sendButton').addEventListener('click', send);
-  document.getElementById('message').addEventListener('keypress', e => {
-    if (e.key === 'Enter') send();
+  document.getElementById('message').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      send();
+    }
+  });
+
+  document.getElementById('message').addEventListener('input', () => {
+    const username = document.getElementById('username').value.trim();
+    if (!username) return;
+    set(child(typingRef, userId), { name: username, time: Date.now() });
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      set(child(typingRef, userId), null);
+    }, 3000);
   });
 
   const messagesDiv = document.getElementById('messages');
-  const typingIndicator = document.getElementById('typingIndicator');
 
   function formatTime(time) {
     const now = Date.now();
     const diff = now - time;
-    if (diff < 60 * 1000) return translations[currentLang].justNow;
-    if (diff < 60 * 60 * 1000) return translations[currentLang].minutesAgo(Math.floor(diff / (60 * 1000)));
-    if (diff < 24 * 60 * 60 * 1000) return translations[currentLang].hoursAgo(Math.floor(diff / (60 * 60 * 1000)));
+
+    if (diff < 60000) return translations[currentLang].justNow;
+    if (diff < 3600000) return translations[currentLang].minutesAgo(Math.floor(diff / 60000));
+    if (diff < 86400000) return translations[currentLang].hoursAgo(Math.floor(diff / 3600000));
     return translations[currentLang].dayAgo;
   }
 
   async function cleanOldMessages() {
     const snapshot = await get(chatRef);
+    const now = Date.now();
     if (snapshot.exists()) {
-      const now = Date.now();
       snapshot.forEach(childSnapshot => {
         const data = childSnapshot.val();
-        if (data.time && now - data.time > 24 * 60 * 60 * 1000) {
+        if (data.time && now - data.time > 86400000) {
           remove(child(chatRef, childSnapshot.key));
         }
       });
@@ -250,39 +259,35 @@
   onChildAdded(chatRef, (data) => {
     const { name, text, time } = data.val();
     const now = Date.now();
-    if (!time || now - time <= 24 * 60 * 60 * 1000) {
+    if (!time || now - time <= 86400000) {
       const timeAgo = formatTime(time);
       const div = document.createElement('div');
       div.innerHTML = `<strong>${name}</strong> (${timeAgo}): ${text}`;
       messagesDiv.appendChild(div);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-      if (notificationsEnabled && document.hidden) {
+      if (notificationsEnabled && document.visibilityState !== 'visible') {
         new Notification(`${name}: ${text}`);
       }
     }
   });
 
-  let typingTimeout;
-
-  document.getElementById('message').addEventListener('input', () => {
-    set(typingRef, { id: userId, typing: true });
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-      set(typingRef, { id: userId, typing: false });
-    }, 2000);
+  onValue(typingRef, (snapshot) => {
+    let someoneTyping = false;
+    snapshot.forEach(child => {
+      if (child.key !== userId) {
+        someoneTyping = true;
+      }
+    });
+    typingIndicator.style.display = someoneTyping ? 'block' : 'none';
+    typingIndicator.textContent = someoneTyping ? translations[currentLang].typingIndicator : '';
   });
 
-  onValue(typingRef, snapshot => {
-    const data = snapshot.val();
-    if (data && data.typing && data.id !== userId) {
-      typingIndicator.textContent = translations[currentLang].typingIndicator;
-      typingIndicator.style.display = 'block';
-    } else {
-      typingIndicator.style.display = 'none';
-    }
-  });
+  if (Notification.permission !== "granted") {
+    Notification.requestPermission();
+  }
 </script>
 
 </body>
 </html>
+
